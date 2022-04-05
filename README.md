@@ -1,6 +1,8 @@
 # GLAuth: LDAP authentication server for developers
 Go-lang LDAP Authentication (GLAuth) is a secure, easy-to-use, LDAP server w/ configurable backends.
 
++ LDAP Authentication with XE(ExpressEngine) user database
+
 [![Gitter](https://badges.gitter.im/glauth/community.svg)](https://gitter.im/glauth/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 [![Matrix](https://img.shields.io/badge/chat-%2fjoin%20%23glauth_community:gitter.im-green)](hey)
 
