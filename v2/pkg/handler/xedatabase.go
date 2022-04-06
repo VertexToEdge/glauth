@@ -115,7 +115,7 @@ func (h xeDatabaseHandler) Search(bindDN string, searchReq ldap.SearchRequest, c
 			dn := fmt.Sprintf("cn=%s,%s=groups,%s", *g.ID, h.backend.GroupFormat, h.backend.BaseDN)
 			entries = append(entries, &ldap.Entry{DN: dn, Attributes: attrs})
 		}
-	case "posixaccount", "":
+	case "posixaccount", "", "posixshadow":
 		userName := ""
 		if searchBaseDN != strings.ToLower(h.backend.BaseDN) {
 			parts := strings.Split(strings.TrimSuffix(searchBaseDN, baseDN), ",")
@@ -130,27 +130,55 @@ func (h xeDatabaseHandler) Search(bindDN string, searchReq ldap.SearchRequest, c
 		}
 		for _, u := range users {
 			attrs := []*ldap.EntryAttribute{}
-			attrs = append(attrs, &ldap.EntryAttribute{Name: "cn", Values: []string{*u.ID}})
-			attrs = append(attrs, &ldap.EntryAttribute{Name: "uid", Values: []string{*u.ID}})
-			if u.DisplayName != nil {
-				attrs = append(attrs, &ldap.EntryAttribute{Name: "givenName", Values: []string{*u.DisplayName}})
-			}
-			if u.Mail != nil {
-				attrs = append(attrs, &ldap.EntryAttribute{Name: "mail", Values: []string{*u.Mail}})
+			attrs = append(attrs, &ldap.EntryAttribute{Name: "cn", Values: []string{u.Name}})
+			attrs = append(attrs, &ldap.EntryAttribute{Name: "uid", Values: []string{u.Name}})
+			attrs = append(attrs, &ldap.EntryAttribute{Name: "givenName", Values: []string{u.Name}})
+			attrs = append(attrs, &ldap.EntryAttribute{Name: "username", Values: []string{u.Name}})
+			if u.Mail != "" {
+				attrs = append(attrs, &ldap.EntryAttribute{Name: "mail", Values: []string{u.Mail}})
 			}
 
 			attrs = append(attrs, &ldap.EntryAttribute{Name: "objectClass", Values: []string{"posixAccount"}})
+			attrs = append(attrs, &ldap.EntryAttribute{Name: "objectClass", Values: []string{"shadowAccount"}})
 
-			attrs = append(attrs, &ldap.EntryAttribute{Name: "description", Values: []string{fmt.Sprintf("%s from Argos", *u.ID)}})
+			attrs = append(attrs, &ldap.EntryAttribute{Name: "description", Values: []string{fmt.Sprintf("%s from Argos", u.Name)}})
 
-			user_group := h.backend.GroupFormat + "=" + strings.Join(strings.Split(*u.CompanyName, ","), ","+h.backend.GroupFormat+"=")
+			user_groups, ok := u.CustomAttrs["groups"].(string)
+			if !ok {
+				user_groups = ""
+			}
+			user_group := h.backend.GroupFormat + "=" + strings.Join(strings.Split(user_groups, ","), ","+h.backend.GroupFormat+"=")
 
-			for _, v := range strings.Split(*u.CompanyName, ",") {
+			for _, v := range strings.Split(user_groups, ",") {
 				attrs = append(attrs, &ldap.EntryAttribute{Name: "ou", Values: []string{v}})
 			}
 
+			user_password, ok := u.CustomAttrs["password"].(string)
+			if ok {
+				attrs = append(attrs, &ldap.EntryAttribute{Name: "userpassword", Values: []string{user_password}})
+			}
+
+			member_srl, ok := u.CustomAttrs["member_srl"].(uint32)
+			if ok {
+				attrs = append(attrs, &ldap.EntryAttribute{Name: "uidnumber", Values: []string{fmt.Sprintf("%d", 2000+member_srl)}})
+			} else {
+				attrs = append(attrs, &ldap.EntryAttribute{Name: "uidnumber", Values: []string{"99999"}})
+			}
+
+			attrs = append(attrs, &ldap.EntryAttribute{Name: "gidnumber", Values: []string{"10000"}})
+
+			attrs = append(attrs, &ldap.EntryAttribute{Name: "loginShell", Values: []string{"/bin/bash"}})
+			attrs = append(attrs, &ldap.EntryAttribute{Name: "homeDirectory", Values: []string{u.Homedir}})
+			attrs = append(attrs, &ldap.EntryAttribute{Name: "shadowExpire", Values: []string{"-1"}})
+			attrs = append(attrs, &ldap.EntryAttribute{Name: "shadowFlag", Values: []string{"134538308"}})
+			attrs = append(attrs, &ldap.EntryAttribute{Name: "shadowInactive", Values: []string{"-1"}})
+			attrs = append(attrs, &ldap.EntryAttribute{Name: "shadowLastChange", Values: []string{"11000"}})
+			attrs = append(attrs, &ldap.EntryAttribute{Name: "shadowMax", Values: []string{"99999"}})
+			attrs = append(attrs, &ldap.EntryAttribute{Name: "shadowMin", Values: []string{"-1"}})
+			attrs = append(attrs, &ldap.EntryAttribute{Name: "shadowWarning", Values: []string{"7"}})
+
 			//fmt.Println(user_group)
-			dn := fmt.Sprintf("%s=%s,%s,%s", h.backend.NameFormat, *u.ID, user_group, h.backend.BaseDN)
+			dn := fmt.Sprintf("%s=%s,%s,%s", h.backend.NameFormat, u.Name, user_group, h.backend.BaseDN)
 			entries = append(entries, &ldap.Entry{DN: dn, Attributes: attrs})
 		}
 	}
@@ -344,7 +372,7 @@ func (p xeDatabaseSession) getGroups() ([]msgraph.Group, error) {
 	}
 	return ret, nil
 }
-func (s xeDatabaseSession) getUsers(userName string) ([]msgraph.User, error) {
+func (s xeDatabaseSession) getUsers(userName string) ([]config.User, error) {
 
 	tx, err := s.dbconn.Begin()
 	if err != nil {
@@ -352,7 +380,7 @@ func (s xeDatabaseSession) getUsers(userName string) ([]msgraph.User, error) {
 	}
 	defer tx.Rollback()
 
-	stmt, err := tx.Prepare("select xe_member.user_id, xe_member.user_name, LOWER(xe_member.email_address), xe_member.member_srl, group_concat(xe_member_group.title) from xe_member inner join xe_member_group_member on xe_member_group_member.member_srl = xe_member.member_srl inner join xe_member_group on xe_member_group.group_srl = xe_member_group_member.group_srl group by user_id;")
+	stmt, err := tx.Prepare("select xe_member.user_id, xe_member.user_name, xe_member.password, LOWER(xe_member.email_address), xe_member.member_srl, group_concat(xe_member_group.title) from xe_member inner join xe_member_group_member on xe_member_group_member.member_srl = xe_member.member_srl inner join xe_member_group on xe_member_group.group_srl = xe_member_group_member.group_srl group by user_id;")
 	if err != nil {
 		return nil, err
 	}
@@ -365,23 +393,29 @@ func (s xeDatabaseSession) getUsers(userName string) ([]msgraph.User, error) {
 	}
 	defer rows.Close()
 
-	ret := make([]msgraph.User, 0)
-
+	ret := make([]config.User, 0)
+	var cnt uint32 = 0
 	for rows.Next() {
-		var user_id, user_name, email_address, groups string
+		cnt++
+		var user_id, user_name, password, email_address, groups string
 		var member_srl uint32
-		err = rows.Scan(&user_id, &user_name, &email_address, &member_srl, &groups)
+		err = rows.Scan(&user_id, &user_name, &password, &email_address, &member_srl, &groups)
 		if err != nil {
 			return nil, err
 		}
-
-		ret = append(ret, msgraph.User{
-			DirectoryObject: msgraph.DirectoryObject{
-				Entity: msgraph.Entity{ID: &user_id},
-			},
-			DisplayName: &user_name,
-			Mail:        &email_address,
-			CompanyName: &groups,
+		attrs := make(map[string]interface{})
+		attrs["groups"] = groups
+		attrs["password"] = "$1" + password
+		attrs["email"] = email_address
+		attrs["username"] = user_name
+		attrs["member_srl"] = cnt //member_srl
+		ret = append(ret, config.User{
+			Name:        user_id,
+			Mail:        email_address,
+			Homedir:     "/home/members/" + user_id,
+			LoginShell:  "/bin/bash",
+			CustomAttrs: attrs,
+			UIDNumber:   2000,
 		})
 	}
 
