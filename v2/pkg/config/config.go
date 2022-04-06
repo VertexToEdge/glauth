@@ -1,6 +1,9 @@
 package config
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 type XEDatabase struct {
 	Hostname string
@@ -122,4 +125,8 @@ type Config struct {
 	AwsAccessKeyId     string
 	AwsSecretAccessKey string
 	AwsRegion          string
+}
+
+func (r XEDatabase) GetSQLConnectionInfo() string {
+	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?allowNativePasswords=true", r.UserID, r.Password, r.Hostname, r.Port, r.Database)
 }
