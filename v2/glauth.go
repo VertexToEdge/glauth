@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"database/sql"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -21,6 +22,7 @@ import (
 	"github.com/glauth/glauth/v2/pkg/server"
 	"github.com/glauth/glauth/v2/pkg/stats"
 	"github.com/go-logr/logr"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/hydronica/toml"
 	"github.com/jinzhu/copier"
 	logging "github.com/op/go-logging"
@@ -65,6 +67,8 @@ var (
 	yubiAuth *yubigo.YubiAuth
 
 	activeConfig = &config.Config{}
+
+	database *sql.DB
 )
 
 // Reads builtime vars and returns a full string containing info about

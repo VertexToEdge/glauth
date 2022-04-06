@@ -2,7 +2,7 @@ module github.com/glauth/glauth
 
 go 1.16
 
-replace github.com/hydronica/toml => ./toml
+replace github.com/hydronica/toml => ./v2/vendored/toml
 
 require (
 	github.com/GeertJohan/yubigo v0.0.0-20190917122436-175bc097e60e

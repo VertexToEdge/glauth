@@ -2,6 +2,14 @@ package config
 
 import "time"
 
+type XEDatabase struct {
+	Hostname string
+	Port     uint16
+	Password string
+	UserID   string
+	Database string
+}
+
 // config file
 type Backend struct {
 	BaseDN        string
@@ -15,7 +23,9 @@ type Backend struct {
 	Plugin        string // Path to plugin library, for plugin backend only
 	PluginHandler string // Name of plugin's main handler function
 	Database      string // For Database backends only
-	AnonymousDSE  bool   // For Config and Database backends only
+	XeDatabase    XEDatabase
+
+	AnonymousDSE bool // For Config and Database backends only
 }
 type Helper struct {
 	Enabled       bool
