@@ -88,7 +88,7 @@ func NewServer(opts ...Option) (*LdapSvc, error) {
 	for i, backend := range s.c.Backends {
 		var h handler.Handler
 		switch backend.Datastore {
-		case "xeDatabase":
+		case "xedatabase":
 			h = handler.NewXeDatabaseHandler(
 				handler.Logger(s.log),
 				handler.Backend(backend),

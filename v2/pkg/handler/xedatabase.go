@@ -141,8 +141,16 @@ func (h xeDatabaseHandler) Search(bindDN string, searchReq ldap.SearchRequest, c
 
 			attrs = append(attrs, &ldap.EntryAttribute{Name: "objectClass", Values: []string{"posixAccount"}})
 
-			attrs = append(attrs, &ldap.EntryAttribute{Name: "description", Values: []string{fmt.Sprintf("%s from ownCloud", *u.ID)}})
-			dn := fmt.Sprintf("%s=%s,%s=%s,%s", h.backend.NameFormat, *u.ID, h.backend.GroupFormat, "users", h.backend.BaseDN)
+			attrs = append(attrs, &ldap.EntryAttribute{Name: "description", Values: []string{fmt.Sprintf("%s from Argos", *u.ID)}})
+
+			user_group := h.backend.GroupFormat + "=" + strings.Join(strings.Split(*u.CompanyName, ","), ","+h.backend.GroupFormat+"=")
+
+			for _, v := range strings.Split(*u.CompanyName, ",") {
+				attrs = append(attrs, &ldap.EntryAttribute{Name: "ou", Values: []string{v}})
+			}
+
+			//fmt.Println(user_group)
+			dn := fmt.Sprintf("%s=%s,%s,%s", h.backend.NameFormat, *u.ID, user_group, h.backend.BaseDN)
 			entries = append(entries, &ldap.Entry{DN: dn, Attributes: attrs})
 		}
 	}
@@ -179,7 +187,7 @@ func (h xeDatabaseHandler) Close(boundDN string, conn net.Conn) error {
 	conn.Close() // close connection to the server when then client is closed
 	h.lock.Lock()
 	defer h.lock.Unlock()
-	h.session.dbconn.Close()
+	//h.session.dbconn.Close()
 	stats.Frontend.Add("closes", 1)
 	stats.Backend.Add("closes", 1)
 	return nil
@@ -189,6 +197,7 @@ func NewXeDatabaseHandler(opts ...Option) Handler {
 	options := newOptions(opts...)
 
 	database, err := sql.Open("mysql", options.Backend.XeDatabase.GetSQLConnectionInfo())
+
 	if err != nil {
 		panic(err)
 	}
@@ -210,6 +219,10 @@ func NewXeDatabaseHandler(opts ...Option) Handler {
 
 func (p *xeDatabaseSession) CheckUserLogin(userid, userpw string) (bool, error) {
 	var password_hash string
+
+	if strings.Count(userid, "=") > 0 {
+		userid = strings.Split(userid, "=")[1]
+	}
 
 	tx, err := p.dbconn.Begin()
 	if err != nil {
@@ -339,7 +352,7 @@ func (s xeDatabaseSession) getUsers(userName string) ([]msgraph.User, error) {
 	}
 	defer tx.Rollback()
 
-	stmt, err := tx.Prepare("select user_id, user_name, email_address, member_srl from xe_member;")
+	stmt, err := tx.Prepare("select xe_member.user_id, xe_member.user_name, LOWER(xe_member.email_address), xe_member.member_srl, group_concat(xe_member_group.title) from xe_member inner join xe_member_group_member on xe_member_group_member.member_srl = xe_member.member_srl inner join xe_member_group on xe_member_group.group_srl = xe_member_group_member.group_srl group by user_id;")
 	if err != nil {
 		return nil, err
 	}
@@ -355,18 +368,20 @@ func (s xeDatabaseSession) getUsers(userName string) ([]msgraph.User, error) {
 	ret := make([]msgraph.User, 0)
 
 	for rows.Next() {
-		var user_id, user_name, email_address string
+		var user_id, user_name, email_address, groups string
 		var member_srl uint32
-		err = rows.Scan(&user_id, &user_name, &email_address, &member_srl)
+		err = rows.Scan(&user_id, &user_name, &email_address, &member_srl, &groups)
 		if err != nil {
 			return nil, err
 		}
+
 		ret = append(ret, msgraph.User{
 			DirectoryObject: msgraph.DirectoryObject{
 				Entity: msgraph.Entity{ID: &user_id},
 			},
 			DisplayName: &user_name,
 			Mail:        &email_address,
+			CompanyName: &groups,
 		})
 	}
 

@@ -19,7 +19,6 @@ require (
 	github.com/lib/pq v1.10.0
 	github.com/mattn/go-sqlite3 v1.14.6
 	github.com/nmcclain/ldap v0.0.0-20210720162743-7f8d1e44eeba
-	github.com/oleksandr/conditions v0.0.0-20170913191404-8ed8af13bdec // indirect
 	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7
 	github.com/pquerna/otp v1.3.0
 	github.com/smartystreets/goconvey v1.6.4

@@ -97,4 +97,7 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
+
+#configure of xedb
+**/sample-xedb.cfg
 # End of https://www.toptal.com/developers/gitignore/api/windows,go,visualstudiocode
