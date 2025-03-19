@@ -101,7 +101,7 @@ func (h xeDatabaseHandler) Search(bindDN string, searchReq ldap.SearchRequest, c
 		for _, g := range groups {
 			attrs := []*ldap.EntryAttribute{}
 			attrs = append(attrs, &ldap.EntryAttribute{Name: "cn", Values: []string{*g.ID}})
-			attrs = append(attrs, &ldap.EntryAttribute{Name: "description", Values: []string{fmt.Sprintf("%s from ownCloud", *g.ID)}})
+			attrs = append(attrs, &ldap.EntryAttribute{Name: "description", Values: []string{fmt.Sprintf("%s from eXpressEngine", *g.ID)}})
 			//			attrs = append(attrs, &ldap.EntryAttribute{"gidNumber", []string{fmt.Sprintf("%d", g.GIDNumber)}})
 			attrs = append(attrs, &ldap.EntryAttribute{Name: "objectClass", Values: []string{"posixGroup"}})
 			if g.Members != nil {
@@ -187,17 +187,17 @@ func (h xeDatabaseHandler) Search(bindDN string, searchReq ldap.SearchRequest, c
 	return ldap.ServerSearchResult{Entries: entries, Referrals: []string{}, Controls: []ldap.Control{}, ResultCode: ldap.LDAPResultSuccess}, nil
 }
 
-// Add is not yet supported for the owncloud backend
+// Add is not yet supported for the eXpressEngine backend
 func (h xeDatabaseHandler) Add(boundDN string, req ldap.AddRequest, conn net.Conn) (result ldap.LDAPResultCode, err error) {
 	return ldap.LDAPResultInsufficientAccessRights, nil
 }
 
-// Modify is not yet supported for the owncloud backend
+// Modify is not yet supported for the eXpressEngine backend
 func (h xeDatabaseHandler) Modify(boundDN string, req ldap.ModifyRequest, conn net.Conn) (result ldap.LDAPResultCode, err error) {
 	return ldap.LDAPResultInsufficientAccessRights, nil
 }
 
-// Delete is not yet supported for the owncloud backend
+// Delete is not yet supported for the eXpressEngine backend
 func (h xeDatabaseHandler) Delete(boundDN string, deleteDN string, conn net.Conn) (result ldap.LDAPResultCode, err error) {
 	return ldap.LDAPResultInsufficientAccessRights, nil
 }
